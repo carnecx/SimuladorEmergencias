@@ -1,0 +1,93 @@
+﻿@model SimuladorEmergencias.Models.SimulacionViewModel
+@{
+    ViewData["Title"] = "Configurar Simulación MLQ";
+}
+
+<div class="container mt-4">
+    <h2 class="mb-1">Configurar Simulación MLQ</h2>
+    <p class="text-muted">Centro de Emergencias — Planificación de Procesos</p>
+
+    <form asp-action="Configurar" method="post">
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <strong>Paso 1 — Número de procesos (N)</strong>
+            </div>
+            <div class="card-body">
+                <label class="form-label">¿Cuántos pacientes/procesos va a simular?</label>
+                <input type="number" name="NProcesos" value="@Model.NProcesos"
+                       min="1" max="50" class="form-control w-25" required />
+            </div>
+        </div>
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-dark text-white">
+                <strong>Paso 2 — Elegir algoritmo para cada cola del MLQ</strong>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered align-middle">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Cola (Tipo de Paciente)</th>
+                            <th>Prioridad</th>
+                            <th>Algoritmo</th>
+                            <th>Quantum (solo RR)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.ConfiguracionColas.Count; i++)
+                        {
+                            var cola = Model.ConfiguracionColas[i];
+                            <tr>
+                                <td>
+                                    <span class="badge me-2"
+                                          style="background-color:@cola.ColorHex">
+                                        &nbsp;
+                                    </span>
+                                    <strong>@cola.NombreTipo</strong>
+                                    <input type="hidden"
+                                           name="ConfiguracionColas[@i].IdTipo"
+                                           value="@cola.IdTipo" />
+                                </td>
+                                <td>@cola.Prioridad</td>
+                                <td>
+                                    <select name="ConfiguracionColas[@i].Algoritmo"
+                                            class="form-select algoritmo-select"
+                                            data-idx="@i">
+                                        <option value="FIFO" selected="@(cola.Algoritmo == "FIFO")">FIFO</option>
+                                        <option value="SJF" selected="@(cola.Algoritmo == "SJF")">SJF</option>
+                                        <option value="RR" selected="@(cola.Algoritmo == "RR")">Round Robin</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number"
+                                           name="ConfiguracionColas[@i].Quantum"
+                                           value="@cola.Quantum"
+                                           min="1" max="10"
+                                           class="form-control quantum-input"
+                                           id="quantum-@i"
+                                           style="@(cola.Algoritmo == "RR" ? "" : "display:none")" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-lg">
+            Siguiente → Ingresar Pacientes
+        </button>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.algoritmo-select').forEach(select => {
+            select.addEventListener('change', function () {
+                const idx = this.dataset.idx;
+                const qInput = document.getElementById('quantum-' + idx);
+                qInput.style.display = this.value === 'RR' ? '' : 'none';
+            });
+        });
+    </script>
+}

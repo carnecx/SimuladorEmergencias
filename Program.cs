@@ -1,7 +1,12 @@
+using SimuladorEmergencias.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddScoped<SimulacionDbService>();
+builder.Services.AddScoped<MlqSimuladorService>();
 
 var app = builder.Build();
 
