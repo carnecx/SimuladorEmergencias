@@ -1,0 +1,168 @@
+﻿@model SimuladorEmergencias.Models.SimulacionViewModel
+@{
+    ViewData["Title"] = "Resultados de la Simulación MLQ";
+    int tiempoMax = Model.GanttSlots.Any() ? Model.GanttSlots.Max(s => s.TiempoFin) : 1;
+}
+
+<div class="container-fluid mt-4">
+    <h2>Resultados — Simulación MLQ</h2>
+    <p class="text-muted">Sesión #@Model.IdSesion — @Model.Pacientes.Count pacientes procesados</p>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-dark text-white">
+            <strong>Diagrama de Gantt</strong>
+        </div>
+        <div class="card-body overflow-auto">
+            <div style="position:relative; height:auto;">
+                @{
+                    var colasPorPrioridad = Model.GanttSlots
+                    .GroupBy(s => s.ColaPrioridad)
+                    .OrderBy(g => g.Key)
+                    .ToList();
+                    int factorEscala = 40; 
+                }
+
+                @foreach (var grupo in colasPorPrioridad)
+                {
+                    var primerSlot = grupo.First();
+                    <div class="mb-2">
+                        <div class="fw-bold small mb-1" style="color:@primerSlot.ColorHex">
+                            Cola @grupo.Key — @primerSlot.NombreTipo
+                            <span class="badge ms-1 text-white"
+                                  style="background:@primerSlot.ColorHex">
+                                @primerSlot.Algoritmo
+                            </span>
+                        </div>
+                        <div style="position:relative; height:36px;
+                                        width:@((tiempoMax + 1) * factorEscala)px;
+                                        background:#f0f0f0; border:1px solid #ccc; border-radius:4px;">
+                            @foreach (var slot in grupo)
+                            {
+                                int left = slot.TiempoInicio * factorEscala;
+                                int width = (slot.TiempoFin - slot.TiempoInicio) * factorEscala - 2;
+                                <div style="position:absolute; left:@(left)px; width:@(width)px;
+                                                    height:34px; background:@slot.ColorHex;
+                                                    border-radius:3px; display:flex;
+                                                    align-items:center; justify-content:center;
+                                                    font-size:11px; color:white; overflow:hidden;
+                                                    white-space:nowrap; cursor:default;"
+                                     title="@slot.NombrePaciente | T.inicio:@slot.TiempoInicio T.fin:@slot.TiempoFin">
+                                    @slot.NombrePaciente
+                                </div>
+                            }
+                        </div>
+                        <div style="position:relative;
+                                        width:@((tiempoMax + 1) * factorEscala)px;
+                                        height:16px;">
+                            @for (int t = 0; t <= tiempoMax; t++)
+                            {
+                                <span style="position:absolute; left:@(t* factorEscala)px;
+                                                     font-size:10px; color:#888;">
+                                    @t
+                                </span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-dark text-white">
+            <strong> Dashboard de Pacientes</strong>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover table-bordered mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Cola</th>
+                        <th>T. Llegada</th>
+                        <th>T. Ráfaga</th>
+                        <th>T. Inicio</th>
+                        <th>T. Fin</th>
+                        <th>T. Espera</th>
+                        <th>T. Retorno</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Pacientes.OrderBy(x => x.Prioridad).ThenBy(x => x.TiempoLlegada))
+                    {
+                        <tr>
+                            <td>@p.IdPaciente</td>
+                            <td>@p.Nombre</td>
+                            <td>
+                                <span class="badge text-white"
+                                      style="background:@p.ColorHex">
+                                    @p.NombreTipo
+                                </span>
+                            </td>
+                            <td>@p.TiempoLlegada</td>
+                            <td>@p.TiempoRafaga</td>
+                            <td>@p.TiempoInicio</td>
+                            <td>@p.TiempoFin</td>
+                            <td>@p.TiempoEspera</td>
+                            <td>@p.TiempoRetorno</td>
+                            <td>
+                                <span class="badge bg-success">Finalizado</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-dark text-white">
+            <strong>Reporte Comparativo por Algoritmo</strong>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-bordered mb-0">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>Cola</th>
+                        <th>Algoritmo</th>
+                        <th>Procesos</th>
+                        <th>Promedio Espera</th>
+                        <th>Promedio Retorno</th>
+                        <th>Utilización CPU</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Reportes.OrderBy(x => x.ColaPrioridad))
+                    {
+                        <tr>
+                            <td>
+                                <span class="badge text-white"
+                                      style="background:@r.ColorHex">
+                                    @r.NombreCola
+                                </span>
+                            </td>
+                            <td><strong>@r.Algoritmo</strong></td>
+                            <td>@r.TotalProcesos</td>
+                            <td>@r.AvgEspera u.t.</td>
+                            <td>@r.AvgRetorno u.t.</td>
+                            <td>
+                                <div class="progress" style="height:20px; min-width:120px">
+                                    <div class="progress-bar bg-success"
+                                         style="width:@(r.UtilizacionCpu)%">
+                                        @r.UtilizacionCpu%
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mb-5">
+        <a asp-action="Configurar" class="btn btn-primary">Nueva Simulación</a>
+        <a href="/historial" class="btn btn-outline-secondary ms-2">Ver Historial</a>
+    </div>
+</div>

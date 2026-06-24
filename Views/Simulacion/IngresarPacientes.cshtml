@@ -1,0 +1,152 @@
+﻿@model List<SimuladorEmergencias.Models.PacienteViewModel>
+@{
+    ViewData["Title"] = "Ingresar Pacientes";
+    var tipos = ViewBag.TiposPaciente as List<SimuladorEmergencias.Models.ConfiguracionColaViewModel>
+                ?? new();
+    int nProcesos = Convert.ToInt32(ViewBag.NProcesos ?? 5);
+}
+
+<div class="container mt-4">
+    <h2>Ingresar Pacientes</h2>
+    <p class="text-muted">Ingrese hasta <strong>@nProcesos</strong> pacientes o cargue un archivo .txt</p>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-secondary text-white">
+            Cargar desde archivo .txt
+        </div>
+        <div class="card-body">
+            <form asp-action="CargarArchivo" method="post" enctype="multipart/form-data">
+                <p class="small text-muted">
+                    Formato por línea: <code>Nombre,IdTipo,TiempoLlegada,TiempoRafaga</code><br />
+                    Ejemplo: <code>Juan Pérez,1,0,5</code>
+                </p>
+                <div class="input-group">
+                    <input type="file" name="archivo" accept=".txt" class="form-control" />
+                    <button type="submit" class="btn btn-secondary">Cargar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <form asp-action="EjecutarSimulacion" method="post">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white d-flex justify-content-between">
+                <span>Lista de Pacientes</span>
+                <button type="button" class="btn btn-sm btn-success" onclick="agregarFila()">
+                    + Agregar paciente
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-bordered mb-0" id="tablaPacientes">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Nombre</th>
+                            <th>Tipo / Cola</th>
+                            <th>Tiempo Llegada</th>
+                            <th>Tiempo Ráfaga</th>
+                            <th>Fuente</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="cuerpoTabla">
+                        @for (int i = 0; i < Model.Count; i++)
+                        {
+                            var p = Model[i];
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td>
+                                    <input type="text" name="pacientes[@i].Nombre"
+                                           value="@p.Nombre" class="form-control form-control-sm"
+                                           placeholder="Nombre" required />
+                                </td>
+                                <td>
+                                    <select name="pacientes[@i].IdTipo"
+                                            class="form-select form-select-sm">
+                                        @foreach (var t in tipos)
+                                        {
+                                            <option value="@t.IdTipo"
+                                                    selected="@(t.IdTipo == p.IdTipo)">
+                                                @t.NombreTipo (P@t.Prioridad)
+                                            </option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="number" name="pacientes[@i].TiempoLlegada"
+                                           value="@p.TiempoLlegada" class="form-control form-control-sm"
+                                           min="0" required />
+                                </td>
+                                <td>
+                                    <input type="number" name="pacientes[@i].TiempoRafaga"
+                                           value="@p.TiempoRafaga" class="form-control form-control-sm"
+                                           min="1" required />
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">@p.Fuente</span>
+                                    <input type="hidden" name="pacientes[@i].Fuente" value="@p.Fuente" />
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-danger"
+                                            onclick="this.closest('tr').remove(); renumerar()">
+                                        ✕
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary btn-lg">
+                 Ejecutar Simulación MLQ
+            </button>
+            <a asp-action="Configurar" class="btn btn-outline-secondary ms-2">← Volver</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        const tipos = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                    tipos.Select(t => new { IdTipo = t.IdTipo, NombreTipo = t.NombreTipo, Prioridad = t.Prioridad })
+            ));
+
+    function agregarFila() {
+        const tbody = document.getElementById('cuerpoTabla');
+        const idx   = tbody.rows.length;
+
+            let opciones = tipos.map(t =>
+                `<option value="${t.IdTipo}">
+                    ${t.NombreTipo} (P${t.Prioridad})
+                 </option>`
+            ).join('');
+
+            const fila = `
+            <tr>
+                <td>${idx + 1}</td>
+                <td><input type="text" name="pacientes[${idx}].Nombre"
+                     class="form-control form-control-sm" placeholder="Nombre" required /></td>
+                <td><select name="pacientes[${idx}].IdTipo"
+                     class="form-select form-select-sm">${opciones}</select></td>
+                <td><input type="number" name="pacientes[${idx}].TiempoLlegada"
+                     value="0" class="form-control form-control-sm" min="0" required /></td>
+                <td><input type="number" name="pacientes[${idx}].TiempoRafaga"
+                     value="1" class="form-control form-control-sm" min="1" required /></td>
+                <td><span class="badge bg-secondary">manual</span>
+                    <input type="hidden" name="pacientes[${idx}].Fuente" value="manual" /></td>
+                <td><button type="button" class="btn btn-sm btn-danger"
+                    onclick="this.closest('tr').remove(); renumerar()">✕</button></td>
+            </tr>`;
+            tbody.insertAdjacentHTML('beforeend', fila);
+        }
+
+        function renumerar() {
+            document.querySelectorAll('#cuerpoTabla tr').forEach((tr, i) => {
+                tr.cells[0].textContent = i + 1;
+            });
+        }
+    </script>
+}
