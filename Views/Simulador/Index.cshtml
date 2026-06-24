@@ -1,0 +1,173 @@
+﻿@{
+    ViewBag.Title = "Simulador de Emergencias";
+    var tipos = ViewBag.Tipos as List<SimuladorEmergencias.Models.TipoPaciente>;
+    var pacientes = ViewBag.Pacientes as List<SimuladorEmergencias.Models.Paciente>;
+}
+
+<div class="container mt-4">
+    <h2 class="mb-4">Simulador de Planificación - Centro de Emergencias</h2>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    <div class="row">
+        <!-- Formulario ingreso manual -->
+        <div class="col-md-5">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Agregar Paciente Manual</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="AgregarPaciente" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" name="Nombre" class="form-control" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de Paciente</label>
+                            <select name="IdTipo" class="form-select" required>
+                                @foreach (var tipo in tipos)
+                                {
+                                    <option value="@tipo.IdTipo">
+                                        @tipo.Nombre (Prioridad @tipo.Prioridad)
+                                    </option>
+                                }
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tiempo de Llegada</label>
+                            <input type="number" name="TiempoLlegada" class="form-control"
+                                   min="0" value="0" required />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tiempo de Ráfaga (atención)</label>
+                            <input type="number" name="TiempoRafaga" class="form-control"
+                                   min="1" value="1" required />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            Agregar Paciente
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Carga desde archivo -->
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">Cargar desde Archivo .txt</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small">
+                        Formato: <code>Nombre,IdTipo,TiempoLlegada,TiempoRafaga</code><br />
+                        Ejemplo: <code>Juan,1,0,5</code>
+                    </p>
+                    <form asp-action="CargarArchivo" method="post"
+                          enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <input type="file" name="archivo" accept=".txt"
+                                   class="form-control" required />
+                        </div>
+                        <button type="submit" class="btn btn-secondary w-100">
+                            Cargar Archivo
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Ejecutar algoritmo -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Ejecutar Algoritmo</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="Ejecutar" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Algoritmo</label>
+                            <select name="algoritmo" id="algoritmo" class="form-select">
+                                <option value="FIFO">FIFO</option>
+                                <option value="SJF">SJF</option>
+                                <option value="RR">Round Robin</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="quantumDiv" style="display:none">
+                            <label class="form-label">Quantum</label>
+                            <input type="number" name="quantum" class="form-control"
+                                   min="1" value="2" />
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">
+                            Ejecutar Simulación
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de pacientes ingresados -->
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Pacientes en Cola (@(pacientes?.Count ?? 0))</h5>
+                    @if (pacientes?.Any() == true)
+                    {
+                        <a asp-action="Limpiar" class="btn btn-sm btn-danger">
+                            Limpiar Todo
+                        </a>
+                    }
+                </div>
+                <div class="card-body p-0">
+                    @if (pacientes == null || !pacientes.Any())
+                    {
+                        <p class="text-muted text-center py-4">
+                            No hay pacientes ingresados aún.
+                        </p>
+                    }
+                    else
+                    {
+                        <table class="table table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Nombre</th>
+                                    <th>Tipo</th>
+                                    <th>Llegada</th>
+                                    <th>Ráfaga</th>
+                                    <th>Fuente</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in pacientes)
+                                {
+                                    <tr>
+                                        <td>@p.IdPaciente</td>
+                                        <td>@p.Nombre</td>
+                                        <td>
+                                            <span class="badge"
+                                                  style="background-color:@p.Tipo?.ColorHex">
+                                                @p.Tipo?.Nombre
+                                            </span>
+                                        </td>
+                                        <td>@p.TiempoLlegada</td>
+                                        <td>@p.TiempoRafaga</td>
+                                        <td>@p.Fuente</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Mostrar/ocultar campo quantum según algoritmo seleccionado
+        document.getElementById('algoritmo').addEventListener('change', function () {
+            document.getElementById('quantumDiv').style.display =
+                this.value === 'RR' ? 'block' : 'none';
+        });
+    </script>
+}
