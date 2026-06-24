@@ -7,9 +7,15 @@ namespace SimuladorEmergencias.Controllers
     public class SimuladorController : Controller
     {
         // Lista en memoria para la sesión actual
-        private static List<Paciente> _pacientes = new List<Paciente>();
-        private static List<GanttEjecucion> _gantt = new List<GanttEjecucion>();
-        private static List<ReporteAlgoritmo> _reportes = new List<ReporteAlgoritmo>();
+        //private static List<Paciente> _pacientes = new List<Paciente>();
+        //private static List<GanttEjecucion> _gantt = new List<GanttEjecucion>();
+        //private static List<ReporteAlgoritmo> _reportes = new List<ReporteAlgoritmo>();
+        private readonly SesionSimulacionService _sesion;
+
+        public SimuladorController(SesionSimulacionService sesion)
+        {
+            _sesion = sesion;
+        }
 
         private readonly FIFO _fifo = new FIFO();
         private readonly SJF _sjf = new SJF();
@@ -18,14 +24,14 @@ namespace SimuladorEmergencias.Controllers
         public IActionResult Index()
         {
             ViewBag.Tipos = ObtenerTipos();
-            ViewBag.Pacientes = _pacientes;
+            ViewBag.Pacientes = _sesion.Pacientes;
             return View();
         }
 
         [HttpPost]
         public IActionResult AgregarPaciente(Paciente paciente)
         {
-            paciente.IdPaciente = _pacientes.Count + 1;
+            paciente.IdPaciente = _sesion.Pacientes.Count + 1;
             paciente.TiempoRestante = paciente.TiempoRafaga;
             paciente.Estado = "esperando";
             paciente.Fuente = "manual";
@@ -33,7 +39,7 @@ namespace SimuladorEmergencias.Controllers
                                      .FirstOrDefault(t => t.IdTipo == paciente.IdTipo);
             paciente.Prioridad = paciente.Tipo?.Prioridad ?? 0;
 
-            _pacientes.Add(paciente);
+            _sesion.Pacientes.Add(paciente);
 
             return RedirectToAction("Index");
         }
@@ -63,7 +69,7 @@ namespace SimuladorEmergencias.Controllers
 
                     var paciente = new Paciente
                     {
-                        IdPaciente = _pacientes.Count + 1,
+                        IdPaciente = _sesion.Pacientes.Count + 1,
                         Nombre = partes[0].Trim(),
                         IdTipo = int.Parse(partes[1].Trim()),
                         TiempoLlegada = int.Parse(partes[2].Trim()),
@@ -76,7 +82,7 @@ namespace SimuladorEmergencias.Controllers
                     paciente.Tipo = tipos.FirstOrDefault(t => t.IdTipo == paciente.IdTipo);
                     paciente.Prioridad = paciente.Tipo?.Prioridad ?? 0;
 
-                    _pacientes.Add(paciente);
+                    _sesion.Pacientes.Add(paciente);
                 }
             }
 
@@ -86,14 +92,14 @@ namespace SimuladorEmergencias.Controllers
         [HttpPost]
         public IActionResult Ejecutar(string algoritmo, int quantum = 2)
         {
-            if (!_pacientes.Any())
+            if (!_sesion.Pacientes.Any())
             {
                 TempData["Error"] = "Agrega al menos un paciente antes de ejecutar.";
                 return RedirectToAction("Index");
             }
 
             // Copia para no modificar la lista original
-            var copia = _pacientes.Select(p => new Paciente
+            var copia = _sesion.Pacientes.Select(p => new Paciente
             {
                 IdPaciente = p.IdPaciente,
                 Nombre = p.Nombre,
@@ -107,8 +113,8 @@ namespace SimuladorEmergencias.Controllers
                 Tipo = p.Tipo
             }).ToList();
 
-            _gantt.Clear();
-            _reportes.Clear();
+            _sesion.Gantt.Clear();
+            _sesion.Reportes.Clear();
 
             List<Paciente> resultado;
 
@@ -116,19 +122,19 @@ namespace SimuladorEmergencias.Controllers
             {
                 case "FIFO":
                     resultado = _fifo.Ejecutar(copia);
-                    _reportes.Add(_fifo.GenerarReporte(resultado, 0));
+                    _sesion.Reportes.Add(_fifo.GenerarReporte(resultado, 0));
                     break;
 
                 case "SJF":
                     resultado = _sjf.Ejecutar(copia);
-                    _reportes.Add(_sjf.GenerarReporte(resultado, 0));
+                    _sesion.Reportes.Add(_sjf.GenerarReporte(resultado, 0));
                     break;
 
                 case "RR":
                     var (pacientesRR, ganttRR) = _roundRobin.Ejecutar(copia, quantum, 0);
                     resultado = pacientesRR;
-                    _gantt.AddRange(ganttRR);
-                    _reportes.Add(_roundRobin.GenerarReporte(resultado, 0));
+                    _sesion.Gantt.AddRange(ganttRR);
+                    _sesion.Reportes.Add(_roundRobin.GenerarReporte(resultado, 0));
                     break;
 
                 default:
@@ -136,23 +142,23 @@ namespace SimuladorEmergencias.Controllers
                     return RedirectToAction("Index");
             }
 
-            _pacientes = resultado;
+            _sesion.Pacientes = resultado;
 
             return RedirectToAction("Resultado");
         }
 
         public IActionResult Resultado()
         {
-            ViewBag.Pacientes = _pacientes;
-            ViewBag.Gantt = _gantt;
-            ViewBag.Reportes = _reportes;
+            ViewBag.Pacientes = _sesion.Pacientes;
+            ViewBag.Gantt = _sesion.Gantt;
+            ViewBag.Reportes = _sesion.Reportes;
             return View();
         }
         public IActionResult Limpiar()
         {
-            _pacientes.Clear();
-            _gantt.Clear();
-            _reportes.Clear();
+            _sesion.Pacientes.Clear();
+            _sesion.Gantt.Clear();
+            _sesion.Reportes.Clear();
             return RedirectToAction("Index");
         }
 

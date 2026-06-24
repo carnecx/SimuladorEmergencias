@@ -1,8 +1,13 @@
+using SimuladorEmergencias.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-
+builder.Services.AddSingleton<SesionSimulacionService>();
+builder.Services.AddSingleton<SesionSimulacionService>();
+builder.Services.AddSingleton<DashboardService>();
+builder.Services.AddSingleton<DashboardService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
