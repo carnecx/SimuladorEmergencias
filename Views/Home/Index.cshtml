@@ -1,8 +1,78 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "Inicio";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <span class="badge bg-danger mb-3">Arquitectura y SO </span>
+
+        <h1 class="display-5 fw-bold text-primary">
+            Simulador de Emergencias Hospitalarias
+        </h1>
+
+        <p class="lead text-muted mx-auto" style="max-width: 800px;">
+            Sistema desarrollado en ASP.NET Core MVC para simular la atención de pacientes
+            en un servicio de emergencias, aplicando algoritmos de planificación como
+            FIFO, SJF, Round Robin y MLQ.
+        </p>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="fs-1 mb-3"></div>
+                    <h5 class="fw-bold">Atención de pacientes</h5>
+                    <p class="text-muted mb-0">
+                        Permite registrar pacientes y simular su proceso de atención
+                        según prioridad y algoritmo seleccionado.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="fs-1 mb-3"></div>
+                    <h5 class="fw-bold">Algoritmos</h5>
+                    <p class="text-muted mb-0">
+                        Compara el comportamiento de distintos métodos de planificación
+                        como FIFO, SJF, Round Robin y MLQ.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body text-center p-4">
+                    <div class="fs-1 mb-3"></div>
+                    <h5 class="fw-bold">Análisis de resultados</h5>
+                    <p class="text-muted mb-0">
+                        Muestra estadísticas, reportes comparativos, historial de simulaciones
+                        y diagramas de Gantt.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-light rounded-4 p-4 p-md-5 border">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h3 class="fw-bold text-dark">¿Cómo utilizar el sistema?</h3>
+                <p class="text-muted mb-md-0">
+                    Desde el menú superior puede acceder a la simulación, configurar las colas,
+                    ejecutar el proceso de atención y revisar los resultados obtenidos en el dashboard.
+                </p>
+            </div>
+
+            <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                <a asp-controller="Simulacion" asp-action="Configurar" class="btn btn-danger btn-lg">
+                    Iniciar simulación
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
