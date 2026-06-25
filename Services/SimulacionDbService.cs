@@ -1,5 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 using SimuladorEmergencias.Models;
+using System.Data;
 
 namespace SimuladorEmergencias.Services
 {
@@ -148,5 +149,144 @@ namespace SimuladorEmergencias.Services
             cmd.Parameters.AddWithValue("@id", idSesion);
             cmd.ExecuteNonQuery();
         }
+        public int ObtenerUltimaSesion()
+        {
+            using var conn = new MySqlConnection(_connStr);
+            conn.Open();
+
+            var cmd = new MySqlCommand(
+                "SELECT IFNULL(MAX(id_sesion),0) FROM sesion",
+                conn);
+
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+
+        public List<Paciente> ObtenerPacientesPorSesion(int idSesion)
+        {
+            var lista = new List<Paciente>();
+
+            using var conn = new MySqlConnection(_connStr);
+            conn.Open();
+
+            var cmd = new MySqlCommand(@"
+        SELECT
+            p.id_paciente,
+            p.id_sesion,
+            p.id_tipo,
+            p.nombre,
+            p.tiempo_llegada,
+            p.tiempo_rafaga,
+            p.tiempo_restante,
+            p.prioridad,
+            p.estado,
+            p.tiempo_inicio,
+            p.tiempo_fin,
+            p.tiempo_espera,
+            p.tiempo_retorno,
+            p.fuente,
+            tp.nombre as tipo_nombre,
+            tp.color_hex
+        FROM paciente p
+        INNER JOIN tipo_paciente tp
+            ON p.id_tipo = tp.id_tipo
+        WHERE p.id_sesion = @sesion
+        ORDER BY p.id_paciente",
+                conn);
+
+            cmd.Parameters.AddWithValue("@sesion", idSesion);
+
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                lista.Add(new Paciente
+                {
+                    IdPaciente = reader.GetInt32("id_paciente"),
+                    IdSesion = reader.GetInt32("id_sesion"),
+                    IdTipo = reader.GetInt32("id_tipo"),
+                    Nombre = reader.GetString("nombre"),
+
+                    TiempoLlegada = reader.GetInt32("tiempo_llegada"),
+                    TiempoRafaga = reader.GetInt32("tiempo_rafaga"),
+                    TiempoRestante = reader.GetInt32("tiempo_restante"),
+
+                    Prioridad = reader.GetInt32("prioridad"),
+                    Estado = reader.GetString("estado"),
+
+                    TiempoInicio = reader.IsDBNull("tiempo_inicio")
+                        ? null
+                        : reader.GetInt32("tiempo_inicio"),
+
+                    TiempoFin = reader.IsDBNull("tiempo_fin")
+                        ? null
+                        : reader.GetInt32("tiempo_fin"),
+
+                    TiempoEspera = reader.IsDBNull("tiempo_espera")
+                        ? null
+                        : reader.GetInt32("tiempo_espera"),
+
+                    TiempoRetorno = reader.IsDBNull("tiempo_retorno")
+                        ? null
+                        : reader.GetInt32("tiempo_retorno"),
+
+                    Fuente = reader.GetString("fuente"),
+
+                    Tipo = new TipoPaciente
+                    {
+                        IdTipo = reader.GetInt32("id_tipo"),
+                        Nombre = reader.GetString("tipo_nombre"),
+                        ColorHex = reader.GetString("color_hex")
+                    }
+                });
+            }
+
+            return lista;
+        }
+        public List<ReporteAlgoritmo> ObtenerReportesPorSesion(int idSesion)
+        {
+            var lista = new List<ReporteAlgoritmo>();
+
+            using var conn = new MySqlConnection(_connStr);
+            conn.Open();
+
+            var cmd = new MySqlCommand(@"
+    SELECT
+        r.algoritmo,
+        r.cola_prioridad,
+        r.avg_espera,
+        r.avg_retorno,
+        r.utilizacion_cpu,
+        r.total_procesos,
+        tp.nombre AS nombre_cola
+    FROM reporte_algoritmo r
+    LEFT JOIN tipo_paciente tp
+        ON r.cola_prioridad = tp.prioridad
+    WHERE r.id_sesion = @sesion
+    ORDER BY r.cola_prioridad",
+       conn); ;
+
+            cmd.Parameters.AddWithValue("@sesion", idSesion);
+
+            using var reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+            {
+                lista.Add(new ReporteAlgoritmo
+                {
+                    Algoritmo = reader.GetString("algoritmo"),
+                    ColaPrioridad = reader.GetInt32("cola_prioridad"),
+                    NombreCola = reader.IsDBNull(reader.GetOrdinal("nombre_cola"))
+           ? $"Cola {reader.GetInt32("cola_prioridad")}"
+           : reader.GetString("nombre_cola"),
+                    AvgEspera = Convert.ToDouble(reader.GetDecimal("avg_espera")),
+                    AvgRetorno = Convert.ToDouble(reader.GetDecimal("avg_retorno")),
+                    UtilizacionCpu = Convert.ToDouble(reader.GetDecimal("utilizacion_cpu")),
+                    TotalProcesos = reader.GetInt32("total_procesos")
+                });
+            }
+
+            return lista;
+        }
+
     }
 }
