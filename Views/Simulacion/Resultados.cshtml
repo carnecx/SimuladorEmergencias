@@ -9,27 +9,49 @@
     <p class="text-muted">Sesión #@Model.IdSesion — @Model.Pacientes.Count pacientes procesados</p>
 
     <div class="card shadow-sm mb-4">
-        <div class="card-header bg-dark text-white">
-            <strong>Diagrama de Gantt</strong>
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <strong>Diagrama de Gantt — Simulación Paso a Paso</strong>
+            <div class="d-flex align-items-center gap-2">
+                <label class="text-white small mb-0 me-1">Velocidad:</label>
+                <select id="velocidadSelect" class="form-select form-select-sm" style="width:130px">
+                    <option value="1200">Lenta</option>
+                    <option value="600" selected>Normal</option>
+                    <option value="250">Rápida</option>
+                </select>
+                <button id="btnSimular" class="btn btn-success btn-sm">▶ Simular</button>
+                <button id="btnReset" class="btn btn-outline-light btn-sm">Reiniciar</button>
+            </div>
         </div>
         <div class="card-body overflow-auto">
-            <div style="position:relative; height:auto;">
+            <div class="mb-3 d-flex align-items-center gap-3">
+                <span class="fw-bold">Tick actual:</span>
+                <span id="tickDisplay"
+                      class="badge bg-primary fs-6 px-3"
+                      style="min-width:60px;text-align:center">0</span>
+                <div class="progress flex-grow-1" style="height:12px">
+                    <div id="progresoBar"
+                         class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                         style="width:0%"></div>
+                </div>
+                <span id="tickTotal" class="text-muted small">/ @tiempoMax</span>
+            </div>
+
+            <div id="ganttContenedor" style="position:relative; height:auto;">
                 @{
                     var colasPorPrioridad = Model.GanttSlots
                     .GroupBy(s => s.ColaPrioridad)
                     .OrderBy(g => g.Key)
                     .ToList();
-                    int factorEscala = 40; 
+                    int factorEscala = 40;
                 }
 
                 @foreach (var grupo in colasPorPrioridad)
                 {
                     var primerSlot = grupo.First();
-                    <div class="mb-2">
+                    <div class="mb-3">
                         <div class="fw-bold small mb-1" style="color:@primerSlot.ColorHex">
                             Cola @grupo.Key — @primerSlot.NombreTipo
-                            <span class="badge ms-1 text-white"
-                                  style="background:@primerSlot.ColorHex">
+                            <span class="badge ms-1 text-white" style="background:@primerSlot.ColorHex">
                                 @primerSlot.Algoritmo
                             </span>
                         </div>
@@ -40,37 +62,56 @@
                             {
                                 int left = slot.TiempoInicio * factorEscala;
                                 int width = (slot.TiempoFin - slot.TiempoInicio) * factorEscala - 2;
-                                <div style="position:absolute; left:@(left)px; width:@(width)px;
-                                                    height:34px; background:@slot.ColorHex;
-                                                    border-radius:3px; display:flex;
-                                                    align-items:center; justify-content:center;
-                                                    font-size:11px; color:white; overflow:hidden;
-                                                    white-space:nowrap; cursor:default;"
+                                <div class="gantt-slot"
+                                     data-inicio="@slot.TiempoInicio"
+                                     data-fin="@slot.TiempoFin"
+                                     data-color="@slot.ColorHex"
+                                     data-nombre="@slot.NombrePaciente"
+                                     style="position:absolute;
+                                                    left:@(left)px;
+                                                    width:0px;
+                                                    height:34px;
+                                                    background:@slot.ColorHex;
+                                                    border-radius:3px;
+                                                    display:flex;
+                                                    align-items:center;
+                                                    justify-content:center;
+                                                    font-size:11px;
+                                                    color:white;
+                                                    overflow:hidden;
+                                                    white-space:nowrap;
+                                                    cursor:default;
+                                                    opacity:0.15;
+                                                    transition: width 0.35s ease, opacity 0.3s ease;"
                                      title="@slot.NombrePaciente | T.inicio:@slot.TiempoInicio T.fin:@slot.TiempoFin">
                                     @slot.NombrePaciente
                                 </div>
                             }
                         </div>
-                        <div style="position:relative;
-                                        width:@((tiempoMax + 1) * factorEscala)px;
-                                        height:16px;">
+                        <div style="position:relative; width:@((tiempoMax + 1) * factorEscala)px; height:16px;">
                             @for (int t = 0; t <= tiempoMax; t++)
                             {
                                 <span style="position:absolute; left:@(t* factorEscala)px;
-                                                     font-size:10px; color:#888;">
-                                    @t
-                                </span>
+                                                     font-size:10px; color:#888;">@t</span>
                             }
                         </div>
                     </div>
                 }
+            </div>
+
+            <div id="agujaContenedor" style="position:relative; height:4px; margin-top:-4px;">
+                <div id="aguja"
+                     style="position:absolute; left:0; top:-200px;
+                            width:2px; background:red; opacity:0.7;
+                            height:200px; transition:left 0.35s linear; pointer-events:none;">
+                </div>
             </div>
         </div>
     </div>
 
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-dark text-white">
-            <strong> Dashboard de Pacientes</strong>
+            <strong>Dashboard de Pacientes</strong>
         </div>
         <div class="card-body p-0">
             <table class="table table-hover table-bordered mb-0">
@@ -88,15 +129,16 @@
                         <th>Estado</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="tablaPacientes">
                     @foreach (var p in Model.Pacientes.OrderBy(x => x.Prioridad).ThenBy(x => x.TiempoLlegada))
                     {
-                        <tr>
+                        <tr id="fila-@p.IdPaciente"
+                            data-inicio="@p.TiempoInicio"
+                            data-fin="@p.TiempoFin">
                             <td>@p.IdPaciente</td>
                             <td>@p.Nombre</td>
                             <td>
-                                <span class="badge text-white"
-                                      style="background:@p.ColorHex">
+                                <span class="badge text-white" style="background:@p.ColorHex">
                                     @p.NombreTipo
                                 </span>
                             </td>
@@ -107,7 +149,7 @@
                             <td>@p.TiempoEspera</td>
                             <td>@p.TiempoRetorno</td>
                             <td>
-                                <span class="badge bg-success">Finalizado</span>
+                                <span class="badge bg-secondary estado-badge">En espera</span>
                             </td>
                         </tr>
                     }
@@ -116,7 +158,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm mb-4" id="seccionReporte" style="opacity:0.3; transition:opacity 0.5s;">
         <div class="card-header bg-dark text-white">
             <strong>Reporte Comparativo por Algoritmo</strong>
         </div>
@@ -137,8 +179,7 @@
                     {
                         <tr>
                             <td>
-                                <span class="badge text-white"
-                                      style="background:@r.ColorHex">
+                                <span class="badge text-white" style="background:@r.ColorHex">
                                     @r.NombreCola
                                 </span>
                             </td>
@@ -166,3 +207,121 @@
         <a href="/historial" class="btn btn-outline-secondary ms-2">Ver Historial</a>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const TICK_MAX    = @tiempoMax;
+            const FACTOR      = 40; 
+            const slots       = document.querySelectorAll('.gantt-slot');
+            const tickDisplay = document.getElementById('tickDisplay');
+            const progresoBar = document.getElementById('progresoBar');
+            const aguja       = document.getElementById('aguja');
+            const btnSimular  = document.getElementById('btnSimular');
+            const btnReset    = document.getElementById('btnReset');
+            const velocidadSel= document.getElementById('velocidadSelect');
+            const secReporte  = document.getElementById('seccionReporte');
+
+            let tickActual  = 0;
+            let intervalo   = null;
+            let corriendo   = false;
+
+            const datosSlots = Array.from(slots).map(el => ({
+                el,
+                inicio : parseInt(el.dataset.inicio),
+                fin    : parseInt(el.dataset.fin),
+                anchoPx: (parseInt(el.dataset.fin) - parseInt(el.dataset.inicio)) * FACTOR - 2
+            }));
+
+            const filas = Array.from(document.querySelectorAll('#tablaPacientes tr[data-inicio]')).map(tr => ({
+                tr,
+                inicio: parseInt(tr.dataset.inicio),
+                fin   : parseInt(tr.dataset.fin),
+                badge : tr.querySelector('.estado-badge')
+            }));
+
+            function aplicarTick(t) {
+                tickDisplay.textContent = t;
+                progresoBar.style.width = ((t / TICK_MAX) * 100).toFixed(1) + '%';
+                aguja.style.left = (t * FACTOR) + 'px';
+
+                datosSlots.forEach(({ el, inicio, fin, anchoPx }) => {
+                    if (t < inicio) {
+                        el.style.width   = '0px';
+                        el.style.opacity = '0.15';
+                    } else if (t >= fin) {
+                        el.style.width   = anchoPx + 'px';
+                        el.style.opacity = '1';
+                    } else {
+                        const avance = t - inicio;
+                        const total  = fin - inicio;
+                        const pct    = avance / total;
+                        el.style.width   = (pct * anchoPx).toFixed(0) + 'px';
+                        el.style.opacity = '0.85';
+                    }
+                });
+                filas.forEach(({ tr, inicio, fin, badge }) => {
+                    if (t < inicio) {
+                        badge.className = 'badge bg-secondary estado-badge';
+                        badge.textContent = 'En espera';
+                        tr.style.background = '';
+                    } else if (t >= inicio && t < fin) {
+                        badge.className = 'badge bg-warning text-dark estado-badge';
+                        badge.textContent = 'Atendiendo';
+                        tr.style.background = '#fffbea';
+                    } else {
+                        badge.className = 'badge bg-success estado-badge';
+                        badge.textContent = 'Finalizado';
+                        tr.style.background = '#f0fff4';
+                    }
+                });
+
+                if (t >= TICK_MAX) {
+                    secReporte.style.opacity = '1';
+                } else {
+                    secReporte.style.opacity = '0.3';
+                }
+            }
+
+            function iniciarSimulacion() {
+                if (corriendo) return;
+                corriendo = true;
+                btnSimular.disabled = true;
+                btnSimular.textContent = 'Simulando...';
+
+                const velocidad = parseInt(velocidadSel.value);
+
+                intervalo = setInterval(() => {
+                    tickActual++;
+                    aplicarTick(tickActual);
+
+                    if (tickActual >= TICK_MAX) {
+                        clearInterval(intervalo);
+                        corriendo = false;
+                        btnSimular.textContent = 'Completado';
+                        btnSimular.classList.replace('btn-success', 'btn-secondary');
+                    }
+                }, velocidad);
+            }
+
+            function resetSimulacion() {
+                clearInterval(intervalo);
+                corriendo   = false;
+                tickActual  = 0;
+                aplicarTick(0);
+                btnSimular.disabled = false;
+                btnSimular.textContent = 'Simular';
+                btnSimular.className = 'btn btn-success btn-sm';
+            }
+
+            btnSimular.addEventListener('click', iniciarSimulacion);
+            btnReset.addEventListener('click', resetSimulacion);
+
+            aplicarTick(0);
+
+            const ganttContenedor = document.getElementById('ganttContenedor');
+            aguja.style.height = ganttContenedor.offsetHeight + 'px';
+            aguja.style.top    = '-' + ganttContenedor.offsetHeight + 'px';
+        })();
+    </script>
+}
