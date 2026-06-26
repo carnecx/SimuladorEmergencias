@@ -13,5 +13,7 @@
 
         public List<Paciente> Pacientes { get; set; } = new();
         public List<ReporteAlgoritmo> Reportes { get; set; } = new();
+
+        public List<Paciente> PacientesMasLentos { get; set; } = new();
     }
 }
