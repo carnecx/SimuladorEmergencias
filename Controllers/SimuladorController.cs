@@ -4,23 +4,43 @@ using SimuladorEmergencias.Services;
 
 namespace SimuladorEmergencias.Controllers
 {
+    /// <summary>
+    /// Controlador principal del simulador de emergencias.
+    /// Gestiona el flujo de pacientes y la ejecución de algoritmos de planificación.
+    /// </summary>
     public class SimuladorController : Controller
     {
         // Lista en memoria para la sesión actual
         //private static List<Paciente> _pacientes = new List<Paciente>();
         //private static List<GanttEjecucion> _gantt = new List<GanttEjecucion>();
         //private static List<ReporteAlgoritmo> _reportes = new List<ReporteAlgoritmo>();
+
+        /// <summary>Servicio que mantiene el estado de la sesión actual del simulador.</summary>
         private readonly SesionSimulacionService _sesion;
 
+        /// <summary>
+        /// Constructor del controlador. Inyecta el servicio de sesión de simulación.
+        /// </summary>
+        /// <param name="sesion">Servicio con el estado compartido de la sesión.</param>
         public SimuladorController(SesionSimulacionService sesion)
         {
             _sesion = sesion;
         }
 
+        /// <summary>Instancia del algoritmo FIFO (First In, First Out).</summary>
         private readonly FIFO _fifo = new FIFO();
+
+        /// <summary>Instancia del algoritmo SJF (Shortest Job First).</summary>
         private readonly SJF _sjf = new SJF();
+
+        /// <summary>Instancia del algoritmo Round Robin con quantum configurable.</summary>
         private readonly RoundRobin _roundRobin = new RoundRobin();
 
+        /// <summary>
+        /// Muestra la vista principal con el formulario de ingreso de pacientes
+        /// y la lista de pacientes registrados en la sesión actual.
+        /// </summary>
+        /// <returns>Vista Index con los tipos de paciente y la lista actual.</returns>
         public IActionResult Index()
         {
             ViewBag.Tipos = ObtenerTipos();
@@ -28,6 +48,12 @@ namespace SimuladorEmergencias.Controllers
             return View();
         }
 
+        /// <summary>
+        /// Agrega un paciente ingresado manualmente al listado de la sesión.
+        /// Asigna el ID, estado inicial, fuente y prioridad según el tipo seleccionado.
+        /// </summary>
+        /// <param name="paciente">Datos del paciente enviados desde el formulario.</param>
+        /// <returns>Redirección a la vista Index.</returns>
         [HttpPost]
         public IActionResult AgregarPaciente(Paciente paciente)
         {
@@ -44,6 +70,13 @@ namespace SimuladorEmergencias.Controllers
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Carga pacientes desde un archivo CSV subido por el usuario.
+        /// Formato esperado por línea: Nombre, IdTipo, TiempoLlegada, TiempoRafaga.
+        /// Las líneas vacías o que inician con '#' son ignoradas.
+        /// </summary>
+        /// <param name="archivo">Archivo CSV enviado desde el formulario.</param>
+        /// <returns>Redirección a la vista Index.</returns>
         [HttpPost]
         public IActionResult CargarArchivo(IFormFile archivo)
         {
@@ -89,6 +122,14 @@ namespace SimuladorEmergencias.Controllers
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Ejecuta el algoritmo de planificación seleccionado sobre una copia
+        /// de los pacientes registrados. Limpia los resultados previos antes de ejecutar.
+        /// Soporta: FIFO, SJF y Round Robin (RR).
+        /// </summary>
+        /// <param name="algoritmo">Nombre del algoritmo a ejecutar: "FIFO", "SJF" o "RR".</param>
+        /// <param name="quantum">Quantum de tiempo para Round Robin (por defecto 2).</param>
+        /// <returns>Redirección a la vista Resultado, o a Index si hay un error.</returns>
         [HttpPost]
         public IActionResult Ejecutar(string algoritmo, int quantum = 2)
         {
@@ -131,6 +172,7 @@ namespace SimuladorEmergencias.Controllers
                     break;
 
                 case "RR":
+                    // Round Robin retorna también el diagrama de Gantt
                     var (pacientesRR, ganttRR) = _roundRobin.Ejecutar(copia, quantum, 0);
                     resultado = pacientesRR;
                     _sesion.Gantt.AddRange(ganttRR);
@@ -147,6 +189,11 @@ namespace SimuladorEmergencias.Controllers
             return RedirectToAction("Resultado");
         }
 
+        /// <summary>
+        /// Muestra la vista con los resultados de la última ejecución:
+        /// lista de pacientes procesados, diagrama de Gantt y reporte del algoritmo.
+        /// </summary>
+        /// <returns>Vista Resultado con los datos de la sesión actual.</returns>
         public IActionResult Resultado()
         {
             ViewBag.Pacientes = _sesion.Pacientes;
@@ -154,6 +201,12 @@ namespace SimuladorEmergencias.Controllers
             ViewBag.Reportes = _sesion.Reportes;
             return View();
         }
+
+        /// <summary>
+        /// Limpia todos los datos de la sesión actual: pacientes, Gantt y reportes.
+        /// Útil para iniciar una nueva simulación desde cero.
+        /// </summary>
+        /// <returns>Redirección a la vista Index.</returns>
         public IActionResult Limpiar()
         {
             _sesion.Pacientes.Clear();
@@ -162,6 +215,11 @@ namespace SimuladorEmergencias.Controllers
             return RedirectToAction("Index");
         }
 
+        /// <summary>
+        /// Retorna la lista estática de tipos de paciente disponibles en el sistema,
+        /// cada uno con su nivel de prioridad y color de identificación visual.
+        /// </summary>
+        /// <returns>Lista de objetos <see cref="TipoPaciente"/> predefinidos.</returns>
         private List<TipoPaciente> ObtenerTipos()
         {
             return new List<TipoPaciente>
